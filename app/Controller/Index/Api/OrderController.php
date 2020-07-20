@@ -42,6 +42,20 @@ class OrderController extends IndexBaseController
 
 
     /**
+     * 获取下单的金额
+     * @param $num
+     * @param $voucher
+     * @param $commodityId
+     * @return array
+     */
+    public function getTradeAmount($num, $voucher, $commodityId): array
+    {
+        $price = $this->orderService->getTradeAmount((int)$num, (string)$voucher, (int)$commodityId);
+        return $this->json(200, 'success', $price);
+    }
+
+
+    /**
      * 订单查询
      * @param $keywords
      * @param $pass
@@ -53,9 +67,9 @@ class OrderController extends IndexBaseController
         $keywords = trim((string)$keywords);
         $filed = ['id', 'trade_no', 'amount', 'pay_id', 'commodity_id', 'create_date', 'pay_date', 'status', 'num', 'contact', 'voucher_id'];
 
-        $order = Order::query()->where("trade_no", $keywords)->with(['pay', 'voucher', 'commodity'])->get($filed);
+        $order = Order::query()->where("trade_no", $keywords)->with(['pay', 'voucher', 'shop'])->get($filed);
         if (count($order) == 0) {
-            $order = Order::query()->where("contact", $keywords)->with(['pay', 'voucher', 'commodity'])->orderBy("id", "desc")->limit(10)->get($filed);
+            $order = Order::query()->where("contact", $keywords)->with(['pay', 'voucher', 'shop'])->orderBy("id", "desc")->limit(10)->get($filed);
         }
 
         if (count($order) == 0) {

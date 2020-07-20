@@ -74,6 +74,62 @@
                 </div>
             </div>
         </div>
+
+        #{if $site.statistics == 1}
+        <style>
+            .fl-lf{
+                float: left;
+                width: 30%;
+                margin: 0;
+
+                display: flex;
+                /*左右居中*/
+                justify-content: center;
+                /*上下居中*/
+                align-items: center;
+            }
+            .fl-lf2{
+                float: left;
+                width: 30%;
+                margin: 0;
+                height: 60px;
+                display: flex;
+                /*左右居中*/
+                justify-content: center;
+                /*上下居中*/
+                align-items: center;
+                font-weight: bold;
+                color: rgba(255, 77, 154, 0.42);
+            }
+        </style>
+
+        <!--            统计部分-->
+        <div class="card">
+            <div class="card-block" style="padding: 0 !important;display: flex;margin-top: 10px;" >
+                <div class="fl-lf2" style="border-right: #ECEFF1 1px solid;">
+                    <i class="fa fa-shopping-cart"></i> <span style="margin-left: 5px;">今日交易</span>
+                </div>
+                <div class="fl-lf2" style="border-right: #ECEFF1 1px solid;"><i class="fa fa-star-half-o"></i><span style="margin-left: 5px;">今日订单</span></div>
+                <div class="fl-lf2" style="border-right: #ECEFF1 1px solid;"><i class="fa fa-modx"></i><span style="margin-left: 5px;">总交易</span></div>
+                <div class="fl-lf2"><i class="fa fa-star"></i><span style="margin-left: 5px;">总订单</span></div>
+            </div>
+            <div class="card-block" style="padding: 0 !important;display: flex;padding-bottom: 20px !important;" >
+                <div class="fl-lf" style="border-right: #ECEFF1 1px solid;">
+                    <span style="color: rgba(255,153,171,0.84);font-weight: bold;">#{$statistics['todaySuccessAmount']}</span>
+                </div>
+                <div class="fl-lf" style="border-right: #ECEFF1 1px solid;">
+                    <span style="color: rgba(255,153,171,0.84);font-weight: bold;">#{$statistics['todaySuccessCount']}</span>
+                </div>
+                <div class="fl-lf" style="border-right: #ECEFF1 1px solid;">
+                    <span style="color: rgba(255,153,171,0.84);font-weight: bold;">#{$statistics['allSuccessAmount']}</span>
+                </div>
+                <div class="fl-lf">
+                    <span style="color: rgba(255,153,171,0.84);font-weight: bold;">#{$statistics['allSuccessCount']}</span>
+                </div>
+            </div>
+        </div>
+
+        #{/if}
     </div>
 </div>
 </div>
@@ -97,7 +153,7 @@
         '                        <p>商品单价： <span class="text-success price"\n' +
         '                                       style="font-weight: bolder;font-size: 18px"></span>\n' +
         '                        </p>\n' +
-        '                        <p>发货方式： <span class="badge badge-pill badge-success text-white">自动发货</span></p>\n' +
+        '                        <p>发货方式： <span class="badge badge-pill text-white cardType">...</span></p>\n' +
         '                        <fieldset class="form-group">\n' +
         '                            <label style="display: inline-block;">联系方式：</label>\n' +
         '                            <input class="form-control round contact" name="contact" placeholder="">\n' +
@@ -118,9 +174,11 @@
         '                        <fieldset class="form-group">\n' +
         '                            <label>购买数量：</label>\n' +
         '                            <input class="form-control round buyNum" name="num" type="number" style="width: 10%;" value="1">\n' +
-        '                            <span style="margin-left: 10px;"> 剩余库存: <span\n' +
+        '                            <span style="margin-left: 10px;" class="kucunView"> 剩余库存: <span\n' +
         '                                    class="badge badge-pill badge-success text-white card_count"></span></span>\n' +
         '                        </fieldset>\n' +
+        '\n' +
+        '                        <p style="display: none;" class="payAmountView">支付金额： <span class="text-danger payAmount"></span></p>\n' +
         '\n' +
         '                        <fieldset class="form-group wholesale" style="display: none;">\n' +
         '                            <label style="color: #007bff;font-size: 14px;">批发优惠已开放</label>\n' +
@@ -153,45 +211,49 @@
             $('.product').show(150);
             res.data.forEach(item => {
                 map[item.id] = item;
-                $('#product').append('<span class="button-click" onclick="commodityClick(this,' + item.id + ')" ' + (item.card_count == 0 ? 'style="background-color: #ced4dadb;opacity: 0.6;"' : '') + '>' + item.name + '</span>');
+                $('#product').append('<span class="button-click" onclick="commodityClick(this,' + item.id + ')" ' + ((item.card_count == 0 && item.card_type == 0) ? 'style="background-color: #ced4dadb;opacity: 0.6;"' : '') + '>' + item.name + '</span>');
             });
         });
     };
 
-    function sort(money, buyNum) {
-        let b = [];
-        ws.forEach((item, key) => {
-            b.push(key)
+    let getPrice = function () {
+        let num = $('.buyNum').val();
+        if (parseInt(num) <= 0 || num === "") {
+            num = 1;
+            $('.buyNum').val(1);
+        }
+        let layIndex = layer.load(1, {
+            shade: [0.3, '#fff'] //0.1透明度的白色背景
         });
-        let g = b.sort(function (a, b) {
-            return b - a;
-        });
-
-        for (var i = 0; i < g.length; i++) {
-            if (buyNum >= g[i]) {
-                money = ws[g[i]];
-                break;
+        $.post('/index/api/order/getTradeAmount', {
+            num: num,
+            voucher: $('.voucher').val(),
+            commodityId: commodityId
+        }, res => {
+            layer.close(layIndex);
+            if (res.code == 200) {
+                $('.payAmountView').show(50);
+                $('.payAmount').html("<b style='font-size:16px;color: red;'>" + res.data.amount.toFixed(2) + " 元</b>" + (res.data.voucher != 0 ? ' <span style="color: #0000FF;font-size: 14px;"><优惠卷已优惠' + res.data.voucher + '元> </span>' : ''));
+                $('.price').html("¥" + res.data.price);
+                orderPrice = res.data.amount.toFixed(2);
+            } else {
+                layer.msg(res.msg);
             }
-        }
-
-        if (money != price) {
-            $('.price').html("¥" + money + " (<small style='color: red;'>已自动减价</small>)");
-        } else {
-            $('.price').html("¥" + money);
-        }
-        orderPrice = money;
+        });
     }
-
-    $('.buyNum').change(function () {
-        let money = price;
-        let buyNum = parseInt($('.buyNum').val());
-        sort(money, buyNum);
-    });
-
 
     let commodityClick = function (obj, id) {
         $('.fadeInLeft').hide();
         $('.shopInfoHtml').html(shopInfoHtml);
+
+        $('.buyNum').change(function () {
+            getPrice();
+        });
+
+        $('.voucher').change(function () {
+            getPrice();
+        });
+
         commodityId = id;
         switchElement(obj);
         let info = map[id];
@@ -252,13 +314,24 @@
                 }
             });
         }
-        $('.description').html(info.desc.replace(/\n/g, "<br>"));
+        $('.description').html(info.desc == null ? '' : info.desc.replace(/\n/g, "<br>"));
         $('.productName').html(info.name);
         $('.price').html("¥" + info.price);
+        //判断发货类型
+        if (info.card_type == 1) {
+            //手动发货
+            $('.cardType').html('手动发货');
+            $('.cardType').addClass('badge-danger');
+            $('.kucunView').hide();
+        } else {
+            $('.cardType').html('自动发货');
+            $('.cardType').addClass('badge-success');
+            $('.card_count').html(info.card_count);
+        }
+
         orderPrice = info.price;
         price = info.price;
         $('.contact').attr("placeholder", info.contact_tips);
-        $('.card_count').html(info.card_count);
         if (info.voucher_status == 1) {
             $('.voucher-view').show();
         }
@@ -281,26 +354,18 @@
             }
         }
         $('.fadeInLeft').show(150);
+        getPrice();
     };
 
     let Buy = function (payId) {
         var mapElement = map[commodityId];
         let buyNum = $('.buyNum').val();
-        layer.confirm('您购买的商品是<b style="color: #0ace36;">' + mapElement.name + '</b>，单价为：<b style="color: red;">' + orderPrice + '</b>元，购买数量：<b style="color: blue;">' + buyNum + '</b>，请确认是否要继续购买？', {
+        layer.confirm('您购买的商品是 <b style="color: #0ace36;font-size: 18px;">' + mapElement.name + '</b>，购买数量：<b style="color: blue;font-size: 18px;font-weight: bold;">' + buyNum + '</b>个，需支付金额：<b style="color: red;font-weight: bold;font-size: 18px;">' + orderPrice + ' 元</b>，请确认是否要继续购买？', {
             btn: ['<span style="color: white;">确认</span>', '取消'] //按钮
         }, function () {
             let layIndex = layer.load(1, {
                 shade: [0.3, '#fff'] //0.1透明度的白色背景
             });
-            /* {
-                 contact: $('.contact').val(),
-                 num: buyNum,
-                 pass: $('.pass').val(),
-                 payId: payId,
-                 device: pay.device(),
-                 voucher: $('.voucher').val(),
-                 commodityId: commodityId
-             }*/
             $.post('/index/api/order/trade', "payId=" + payId + "&device=" + pay.device() + "&commodityId=" + commodityId + "&" + $('#buyForm').serialize(), res => {
                 layer.close(layIndex);
                 if (res.code == 200) {
